@@ -33,7 +33,7 @@ public class Dataline implements Iterable< Pair<String, String> > {
     }
 
     @Override
-    public Iterator<Pair<String, String>> iterator() {
+    public Iterator< Pair<String, String> > iterator() {
         return data.iterator();
     }
 }

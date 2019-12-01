@@ -6,7 +6,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SqlTable extends Table implements IQueryable {
+public class SqlTable extends Table {
 
     private Connection con;
 
@@ -115,5 +115,10 @@ public class SqlTable extends Table implements IQueryable {
         stmt.close();
         res.close();
         return ans;
+    }
+
+    @Override
+    public void close() throws Exception {
+
     }
 }

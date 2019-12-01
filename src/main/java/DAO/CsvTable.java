@@ -10,26 +10,29 @@ import java.util.List;
 public class CsvTable extends Table implements IQueryable {
 
     private File file;
+    private boolean temporary = false;
 
     public CsvTable(String path) {
         super(path);
         file = new File(path);
     }
 
+    public CsvTable(String path, boolean temporary) {
+        this(path);
+        this.temporary = temporary;
+    }
+
     @Override
     public void insert(Dataline selector) {
-        try {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, true))) {
             //TODO:: add field names check
             StringBuffer line = new StringBuffer();
             for (Pair<String, String> pair : selector) {
                 line.append(pair.getValue()).append(",");
             }
             line.delete(line.length() - 1, line.length());
-
-            BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
             writer.newLine();
             writer.write(line.toString());
-            writer.close();
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -38,8 +41,8 @@ public class CsvTable extends Table implements IQueryable {
 
     @Override
     public void update(Dataline selector) {
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader(file));
+        try (BufferedReader reader = new BufferedReader(new FileReader(file));
+             BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
             List<String> keys  = Arrays.asList(reader.readLine().split(","));
             List<String> names = Arrays.asList(reader.readLine().split(","));
 
@@ -68,9 +71,7 @@ public class CsvTable extends Table implements IQueryable {
                     data.add(line);
                 }
             }
-            reader.close();
 
-            BufferedWriter writer = new BufferedWriter(new FileWriter(file));
             writer.write(String.join(",",keys));
             writer.newLine();
             writer.write(String.join(",",names));
@@ -78,7 +79,6 @@ public class CsvTable extends Table implements IQueryable {
                 writer.newLine();
                 writer.write(str);
             }
-            writer.close();
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -87,8 +87,7 @@ public class CsvTable extends Table implements IQueryable {
 
     @Override
     public List<Dataline> select(Dataline selector) {
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader(file));
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             reader.readLine();
             List<String> names = Arrays.asList(reader.readLine().split(","));
 
@@ -104,7 +103,6 @@ public class CsvTable extends Table implements IQueryable {
                     res.add(tempLine);
                 }
             }
-            reader.close();
 
             return res;
         }
@@ -116,6 +114,33 @@ public class CsvTable extends Table implements IQueryable {
 
     @Override
     public List<Dataline> getFullTable() {
-        return null;
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            reader.readLine();
+            List<String> names = Arrays.asList(reader.readLine().split(","));
+
+            List<Dataline> res = new ArrayList<>();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                Dataline tempLine = new Dataline();
+                int nameIndex = 0;
+                for (String value : Arrays.asList(line.split(","))) {
+                    tempLine.addField(names.get(nameIndex++), value);
+                }
+                res.add(tempLine);
+            }
+
+            return res;
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (temporary) {
+            file.delete();
+        }
     }
 }

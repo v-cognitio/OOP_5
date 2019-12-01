@@ -3,30 +3,35 @@ package Service;
 import DAO.Dataline;
 import DAO.IQueryable;
 import DAO.SqlTable;
+import DAO.Table;
 import javafx.util.Pair;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.xml.crypto.Data;
 import java.util.List;
 
-public class SqlService {
+public class DataService implements AutoCloseable {
 
-    //private String url;
-    //private String user;
-    //private String password;
-    private IQueryable products;
-    private IQueryable storehouses;
-    private IQueryable shops;
+    private Table products;
+    private Table storehouses;
+    private Table shops;
 
-    public SqlService(String url, String user, String password) {
-        //this.url = url;
-        //this.user = user;
-        //this.password = password;
-
+    public DataService(String url, String user, String password) {
         try {
-            products    = new SqlTable("products", url, user, password);
-            storehouses = new SqlTable("storehouses", url, user, password);
-            shops       = new SqlTable("shops", url,user, password);
+            this.products    = new SqlTable("products", url, user, password);
+            this.storehouses = new SqlTable("storehouses", url, user, password);
+            this.shops       = new SqlTable("shops", url,user, password);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public DataService(String shopsPath, String productsPath) {
+        try {
+            CsvAdapter adapter = new CsvAdapter(shopsPath, productsPath);
+
+            this.shops       = adapter.getShopsTable();
+            this.products    = adapter.getProductsTable();
+            this.storehouses = adapter.getStorehousesTable();
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -37,7 +42,6 @@ public class SqlService {
         shops.insert(new Dataline()
                 .addField("name",    name)
                 .addField("address", street));
-
     }
 
     public void createProduct(String name) {
@@ -46,14 +50,8 @@ public class SqlService {
     }
 
     public void doDelivery(String shopName, String productName, Integer cost, Integer count) {
-        List<Dataline> productsResponse = selectFrom(products, new Dataline()
-                .addField("name", productName));
-
-        List<Dataline> shopResponse     = selectFrom(shops, new Dataline()
-                .addField("name", shopName));
-
-        String  shop_id    = shopResponse.get(0).getValue(0);
-        String  product_id = productsResponse.get(0).getValue(0);
+        String  shop_id    = getShopId(shopName);
+        String  product_id = getProductId(productName);
 
 
         List<Dataline> storehouseResponse = selectFrom(storehouses, new Dataline()
@@ -80,10 +78,7 @@ public class SqlService {
     }
 
     public String bestPrice(String productName) {
-        List<Dataline> productsResponse = selectFrom(products, new Dataline()
-                .addField("name", productName));
-
-        String product_id = productsResponse.get(0).getValue(0);
+        String product_id = getProductId(productName);
 
         List<Dataline> storehousesResponse = selectFrom(storehouses, new Dataline()
                 .addField("product_id", product_id));
@@ -98,18 +93,12 @@ public class SqlService {
             }
         }
 
-        List<Dataline> shopResponse = selectFrom(shops, new Dataline()
-                .addField("id", minShop_id));
-
-        return shopResponse.get(0).getValue(1);
+        return getShopName(minShop_id);
     }
 
     //set: product_name - count
     public Integer buyProductSet(String shopName, Dataline set) {
-        List<Dataline> shopResponse     = selectFrom(shops, new Dataline()
-                .addField("name", shopName));
-
-        String shop_id = shopResponse.get(0).getValue(0);
+        String shop_id = getShopId(shopName);
 
         int totalCost = 0;
         for (Pair<String, String> line : set) {
@@ -153,6 +142,24 @@ public class SqlService {
         return minShop_name;
     }
 
+    public Dataline buyWithLimit(String shopName, int limit) {
+        Dataline res = new Dataline();
+
+        String shop_id = getShopId(shopName);
+
+        List<Dataline> storehouseResponse = selectFrom(storehouses, new Dataline()
+                .addField("shop_id", shop_id));
+
+        for (Dataline line : storehouseResponse) {
+            Integer currentPossibleCount = Math.min(
+                    limit / Integer.parseInt(line.getValue(2)),
+                    Integer.parseInt(line.getValue(3)));
+            res.addField(getProductName(line.getValue(1)), currentPossibleCount.toString());
+        }
+
+        return res;
+    }
+
     private List<Dataline> selectFrom(IQueryable table, Dataline query) {
         List<Dataline> response = table.select(query);
         /*if (response.isEmpty()) {
@@ -160,5 +167,36 @@ public class SqlService {
         }*/
 
         return response;
+    }
+
+    private String getProductName(String id) {
+        List<Dataline> response = selectFrom(products, new Dataline()
+                .addField("id", id));
+        return response.get(0).getValue(1);
+    }
+
+    private String getProductId(String name) {
+        List<Dataline> productsResponse = selectFrom(products, new Dataline()
+                .addField("name", name));
+        return productsResponse.get(0).getValue(0);
+    }
+
+    private String getShopName(String id) {
+        List<Dataline> shopResponse = selectFrom(shops, new Dataline()
+                .addField("id", id));
+        return shopResponse.get(0).getValue(1);
+    }
+
+    private String getShopId(String name) {
+        List<Dataline> shopResponse = selectFrom(shops, new Dataline()
+                .addField("name", name));
+        return shopResponse.get(0).getValue(0);
+    }
+
+    @Override
+    public void close() throws Exception {
+        shops.close();
+        products.close();
+        storehouses.close();
     }
 }
