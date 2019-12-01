@@ -1,0 +1,18 @@
+plugins {
+    id 'java'
+}
+
+group 'com.v_cognitio.oop'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    implementation 'org.hibernate:hibernate-core:5.4.2.Final'
+    compile group: 'mysql', name: 'mysql-connector-java', version: '5.1.6'
+}
