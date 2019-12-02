@@ -57,7 +57,7 @@ public class Application {
         //*** actions ***//
 
 
-        Dataline line = service.buyWithLimit("Auchan 1", 200);
+        Dataline line = service.buyWithLimit("Auchan", 200);
         for (Pair<String, String> pair : line) {
             System.out.println(pair.getKey() + " - " + pair.getValue());
         }

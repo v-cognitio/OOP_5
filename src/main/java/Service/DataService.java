@@ -14,6 +14,8 @@ public class DataService implements AutoCloseable {
     private Table storehouses;
     private Table shops;
 
+    private AutoCloseable adapter = null;
+
     public DataService(String url, String user, String password) {
         try {
             this.products    = new SqlTable("products", url, user, password);
@@ -29,6 +31,7 @@ public class DataService implements AutoCloseable {
         try {
             CsvAdapter adapter = new CsvAdapter(shopsPath, productsPath);
 
+            this.adapter = adapter;
             this.shops       = adapter.getShopsTable();
             this.products    = adapter.getProductsTable();
             this.storehouses = adapter.getStorehousesTable();
@@ -39,13 +42,17 @@ public class DataService implements AutoCloseable {
     }
 
     public void createShop(String name, String street) {
+        Integer last_id = shops.getFullTable().size() + 1;
         shops.insert(new Dataline()
+                .addField("id",      last_id.toString())
                 .addField("name",    name)
                 .addField("address", street));
     }
 
     public void createProduct(String name) {
+        Integer last_id = products.getFullTable().size() + 1;
         products.insert(new Dataline()
+                .addField("id",      last_id.toString())
                 .addField("name", name));
     }
 
@@ -195,6 +202,9 @@ public class DataService implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        if (adapter != null) {
+            adapter.close();
+        }
         shops.close();
         products.close();
         storehouses.close();

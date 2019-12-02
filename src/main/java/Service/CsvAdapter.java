@@ -1,11 +1,13 @@
 package Service;
 
 import DAO.CsvTable;
+import DAO.Dataline;
 import DAO.IQueryable;
 import DAO.Table;
 import javafx.util.Pair;
 
 import java.io.*;
+import java.util.List;
 import java.util.Random;
 
 public class CsvAdapter implements AutoCloseable {
@@ -14,13 +16,19 @@ public class CsvAdapter implements AutoCloseable {
     private String productsPath;
     private String storehousesPath;
 
+    private String relativeShopsPath;
+    private String relativeProductsPath;
+
     private Table shopsTable;
     private Table productsTable;
     private Table storehousesTable;
 
     public CsvAdapter(String shopsPath, String productsPath) throws IOException {
-        this.shopsPath = convertShops(shopsPath);
-        Pair<String, String> names = convertProducts(productsPath);
+        this.relativeShopsPath    = shopsPath;
+        this.relativeProductsPath = productsPath;
+
+        this.shopsPath = convertShops(relativeShopsPath);
+        Pair<String, String> names = convertProducts(relativeProductsPath);
         this.productsPath    = names.getKey();
         this.storehousesPath = names.getValue();
 
@@ -94,8 +102,40 @@ public class CsvAdapter implements AutoCloseable {
         }
     }
 
+    private void update() {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(relativeShopsPath))) {
+            List<Dataline> lines = getShopsTable().getFullTable();
+            for (Dataline line : lines) {
+                writer.write(line.getValue(0) + "," + line.getValue(1));
+                writer.newLine();
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(relativeProductsPath))) {
+            List<Dataline> productsLines = getProductsTable().getFullTable();
+            for (Dataline line : productsLines) {
+                writer.write(line.getValue(1));
+                List<Dataline> request = getStorehousesTable().select(new Dataline()
+                        .addField("product_id", line.getValue(0)));
+                for (Dataline reqLine : request) {
+                    writer.write("," + reqLine.getValue(0) +
+                            "," + reqLine.getValue(2) + "," + reqLine.getValue(3));
+                }
+                writer.newLine();
+            }
+
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void close() throws Exception {
+        update();
         shopsTable.close();
         productsTable.close();
         storehousesTable.close();
